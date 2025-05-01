@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Category } = require('../models/category');
 const multer = require('multer');
-const { cloudinary, storage } = require('../cloudinary');
+const { cloudinary, storage } = require('../cloudinary'); // ✅ import once at the top
 const upload = multer({ storage });
 
 // GET all categories
@@ -28,7 +28,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST create category (Cloudinary via multer handles upload)
+// POST create category
 router.post('/', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).send('No image uploaded');
@@ -36,8 +36,8 @@ router.post('/', upload.single('image'), async (req, res) => {
     const category = new Category({
       name: req.body.name,
       image: {
-        url: req.file.path,          // ✅ path is Cloudinary secure_url
-        public_id: req.file.filename // ✅ filename is Cloudinary public_id
+        url: req.file.path,
+        public_id: req.file.filename
       },
     });
 
@@ -50,23 +50,18 @@ router.post('/', upload.single('image'), async (req, res) => {
 });
 
 // PUT update category
-// Update category
 router.put('/:id', upload.single('image'), async (req, res) => {
   try {
     const category = await Category.findById(req.params.id);
     if (!category) return res.status(404).send('Category not found');
 
-    // Update name
     category.name = req.body.name || category.name;
 
-    // If a new image is uploaded
     if (req.file) {
-      // Delete old image from Cloudinary
       if (category.image?.public_id) {
         await cloudinary.uploader.destroy(category.image.public_id);
       }
 
-      // Upload new image to Cloudinary
       const result = await cloudinary.uploader.upload(req.file.path, {
         folder: 'categories',
       });
@@ -91,9 +86,7 @@ router.delete('/:id', async (req, res) => {
     const category = await Category.findById(req.params.id);
     if (!category) return res.status(404).send('Category not found');
 
-    // Delete from Cloudinary
     if (category.image?.public_id) {
-      const cloudinary = require('cloudinary').v2;
       await cloudinary.uploader.destroy(category.image.public_id);
     }
 
