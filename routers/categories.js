@@ -50,31 +50,37 @@ router.post('/', upload.single('image'), async (req, res) => {
 });
 
 // PUT update category
+// Update category
 router.put('/:id', upload.single('image'), async (req, res) => {
   try {
     const category = await Category.findById(req.params.id);
     if (!category) return res.status(404).send('Category not found');
 
-    // Delete old image if a new one is uploaded
-    if (req.file && category.image?.public_id) {
-      const cloudinary = require('cloudinary').v2;
-      await cloudinary.uploader.destroy(category.image.public_id);
-    }
-
-    // Update fields
+    // Update name
     category.name = req.body.name || category.name;
 
+    // If a new image is uploaded
     if (req.file) {
+      // Delete old image from Cloudinary
+      if (category.image?.public_id) {
+        await cloudinary.uploader.destroy(category.image.public_id);
+      }
+
+      // Upload new image to Cloudinary
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'categories',
+      });
+
       category.image = {
-        url: req.file.path,
-        public_id: req.file.filename,
+        url: result.secure_url,
+        public_id: result.public_id,
       };
     }
 
     const updated = await category.save();
-    res.send(updated);
+    res.status(200).send(updated);
   } catch (error) {
-    console.error('Category update failed:', error);
+    console.error('Category update failed:', error.message);
     res.status(500).send('Category update failed');
   }
 });
