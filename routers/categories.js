@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Category } = require('../models/category');
 const multer = require('multer');
-const { storage } = require('../cloudinary');
+const { cloudinary, storage } = require('../cloudinary');
 const upload = multer({ storage });
 
 // GET all categories
