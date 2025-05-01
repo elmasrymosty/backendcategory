@@ -5,6 +5,8 @@ const multer = require('multer');
 const { Banner } = require('../models/Banner');
 const { cloudinary, storage } = require('../cloudinary');
 const upload = multer({ storage });
+const path = require('path');
+
 
 // ✅  deleteloudinary
 const deleteImagesFromCloudinary = async (images) => {
