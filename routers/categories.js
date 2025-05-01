@@ -2,9 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { Category } = require('../models/category');
 const multer = require('multer');
-const { storage } = require('../cloudinary'); // ✅ Same as product route
+const { storage } = require('../cloudinary');
 const upload = multer({ storage });
-const cloudinary = require('cloudinary').v2;
 
 // GET all categories
 router.get('/', async (req, res) => {
@@ -29,20 +28,16 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST create category with Cloudinary upload
+// POST create category (Cloudinary via multer handles upload)
 router.post('/', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).send('No image uploaded');
 
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'categories',
-    });
-
     const category = new Category({
       name: req.body.name,
       image: {
-        url: result.secure_url,
-        public_id: result.public_id,
+        url: req.file.path,          // ✅ path is Cloudinary secure_url
+        public_id: req.file.filename // ✅ filename is Cloudinary public_id
       },
     });
 
@@ -60,25 +55,21 @@ router.put('/:id', upload.single('image'), async (req, res) => {
     const category = await Category.findById(req.params.id);
     if (!category) return res.status(404).send('Category not found');
 
-    // Delete old image from Cloudinary if a new one is uploaded
+    // Delete old image if a new one is uploaded
     if (req.file && category.image?.public_id) {
+      const cloudinary = require('cloudinary').v2;
       await cloudinary.uploader.destroy(category.image.public_id);
     }
 
-    let updatedImage = category.image;
+    // Update fields
+    category.name = req.body.name || category.name;
 
     if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: 'categories',
-      });
-      updatedImage = {
-        url: result.secure_url,
-        public_id: result.public_id,
+      category.image = {
+        url: req.file.path,
+        public_id: req.file.filename,
       };
     }
-
-    category.name = req.body.name || category.name;
-    category.image = updatedImage;
 
     const updated = await category.save();
     res.send(updated);
@@ -94,7 +85,9 @@ router.delete('/:id', async (req, res) => {
     const category = await Category.findById(req.params.id);
     if (!category) return res.status(404).send('Category not found');
 
+    // Delete from Cloudinary
     if (category.image?.public_id) {
+      const cloudinary = require('cloudinary').v2;
       await cloudinary.uploader.destroy(category.image.public_id);
     }
 
